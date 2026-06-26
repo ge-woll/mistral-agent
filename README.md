@@ -5,7 +5,7 @@ Eine kleine Next.js-App, die eine Chatoberflaeche fuer einen Mistral-Agenten ber
 Der Agent ist standardmaessig auf diese ID vorkonfiguriert:
 
 ```txt
-ag_019f02ee1e88722fb6a1043abada152b
+ag_019f02ee1
 ```
 
 ## Lokal starten
@@ -32,7 +32,7 @@ In `.env` muss mindestens `MISTRAL_API_KEY` gesetzt sein.
 
 ```txt
 MISTRAL_API_KEY=dein_mistral_api_key
-MISTRAL_AGENT_ID=ag_019f02ee1e88722fb6a1043abada152b
+MISTRAL_AGENT_ID=ag_019f02ee
 ```
 
 4. Port `3000` verwenden und deployen.
