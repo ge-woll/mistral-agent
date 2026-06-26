@@ -13,6 +13,7 @@ type MistralResponse = {
   answer?: string;
   output_text?: string;
   output?: MistralOutput[];
+  outputs?: MistralOutput[];
   choices?: Array<{
     message?: {
       content?: string | Array<{ text?: string; content?: string }>;
@@ -70,6 +71,7 @@ async function callMistralAgent(apiKey: string, agentId: string, message: string
     body: JSON.stringify({
       agent_id: agentId,
       inputs: message,
+      stream: false,
     }),
   });
   const conversationsPayload = (await conversationsResponse.json().catch(() => null)) as
@@ -100,18 +102,8 @@ function extractAnswer(payload: MistralResponse | null): string {
   if (typeof payload.answer === "string") return payload.answer;
   if (typeof payload.output_text === "string") return payload.output_text;
 
-  const outputText = payload.output
-    ?.map((item) => {
-      if (typeof item.text === "string") return item.text;
-      if (typeof item.content === "string") return item.content;
-      if (Array.isArray(item.content)) {
-        return item.content
-          .map((part) => part.text ?? part.content ?? "")
-          .filter(Boolean)
-          .join("\n");
-      }
-      return "";
-    })
+  const outputText = [...(payload.outputs ?? []), ...(payload.output ?? [])]
+    .map(extractTextFromValue)
     .filter(Boolean)
     .join("\n");
 
@@ -120,8 +112,35 @@ function extractAnswer(payload: MistralResponse | null): string {
   const choiceContent = payload.choices?.[0]?.message?.content;
   if (typeof choiceContent === "string") return choiceContent;
   if (Array.isArray(choiceContent)) {
-    return choiceContent.map((part) => part.text ?? part.content ?? "").filter(Boolean).join("\n");
+    return choiceContent.map(extractTextFromValue).filter(Boolean).join("\n");
   }
+
+  return extractTextFromValue(payload);
+}
+
+function extractTextFromValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!value) return "";
+
+  if (Array.isArray(value)) {
+    return value.map(extractTextFromValue).filter(Boolean).join("\n");
+  }
+
+  if (typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  const directText = record.text ?? record.content ?? record.output_text ?? record.answer;
+  if (typeof directText === "string") return directText;
+  if (Array.isArray(directText)) return extractTextFromValue(directText);
+
+  const message = record.message;
+  if (message && typeof message === "object") {
+    const messageText = extractTextFromValue((message as Record<string, unknown>).content);
+    if (messageText) return messageText;
+  }
+
+  const nestedOutputs = record.outputs ?? record.output;
+  if (Array.isArray(nestedOutputs)) return extractTextFromValue(nestedOutputs);
 
   return "";
 }
